@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 interface Subject {
   id: string;
   name: string;
-  totalTasks: number;
+  part1Range: { from: number; to: number };
+  part2Range: { from: number; to: number };
+  part2MaxPoints: Record<number, number>;
   icon: string;
   color: string;
 }
@@ -20,15 +22,31 @@ interface Subject {
 interface TaskAttempt {
   taskNumber: number;
   status: 'completed' | 'failed' | 'skipped';
+  points?: number;
+  maxPoints?: number;
   date: string;
 }
 
 const EGETracker = () => {
   const [subjects, setSubjects] = useState<Subject[]>([
-    { id: 'math', name: 'Математика', totalTasks: 19, icon: 'Calculator', color: 'bg-blue-500' },
-    { id: 'russian', name: 'Русский язык', totalTasks: 27, icon: 'BookOpen', color: 'bg-purple-500' },
-    { id: 'physics', name: 'Физика', totalTasks: 26, icon: 'Atom', color: 'bg-green-500' },
-    { id: 'informatics', name: 'Информатика', totalTasks: 27, icon: 'Code', color: 'bg-orange-500' }
+    { 
+      id: 'math', 
+      name: 'Математика', 
+      part1Range: { from: 1, to: 12 },
+      part2Range: { from: 13, to: 19 },
+      part2MaxPoints: { 13: 2, 14: 2, 15: 2, 16: 3, 17: 3, 18: 4, 19: 4 },
+      icon: 'Calculator', 
+      color: 'bg-blue-500' 
+    },
+    { 
+      id: 'russian', 
+      name: 'Русский язык', 
+      part1Range: { from: 1, to: 26 },
+      part2Range: { from: 27, to: 27 },
+      part2MaxPoints: { 27: 24 },
+      icon: 'BookOpen', 
+      color: 'bg-purple-500' 
+    }
   ]);
 
   const [attempts, setAttempts] = useState<Record<string, TaskAttempt[]>>({
@@ -36,22 +54,30 @@ const EGETracker = () => {
       { taskNumber: 1, status: 'completed', date: '2025-10-15' },
       { taskNumber: 2, status: 'completed', date: '2025-10-15' },
       { taskNumber: 3, status: 'failed', date: '2025-10-15' },
-      { taskNumber: 1, status: 'completed', date: '2025-10-16' },
-      { taskNumber: 5, status: 'completed', date: '2025-10-16' }
+      { taskNumber: 13, status: 'completed', points: 2, maxPoints: 2, date: '2025-10-16' },
+      { taskNumber: 19, status: 'completed', points: 2, maxPoints: 4, date: '2025-10-16' }
     ],
-    russian: [],
-    physics: [],
-    informatics: []
+    russian: []
   });
 
   const [selectedTasks, setSelectedTasks] = useState<Record<string, number | null>>({
     math: null,
-    russian: null,
-    physics: null,
-    informatics: null
+    russian: null
   });
 
-  const [newSubject, setNewSubject] = useState({ name: '', totalTasks: 20, icon: 'BookOpen', color: 'bg-pink-500' });
+  const [part2Points, setPart2Points] = useState<number>(0);
+
+  const [newSubject, setNewSubject] = useState({ 
+    name: '', 
+    part1From: 1,
+    part1To: 12,
+    part2From: 13,
+    part2To: 19,
+    icon: 'BookOpen', 
+    color: 'bg-pink-500' 
+  });
+
+  const [part2PointsConfig, setPart2PointsConfig] = useState<Record<number, number>>({});
 
   const addSubject = () => {
     if (!newSubject.name.trim()) return;
@@ -60,7 +86,9 @@ const EGETracker = () => {
     const subject: Subject = {
       id,
       name: newSubject.name,
-      totalTasks: newSubject.totalTasks,
+      part1Range: { from: newSubject.part1From, to: newSubject.part1To },
+      part2Range: { from: newSubject.part2From, to: newSubject.part2To },
+      part2MaxPoints: part2PointsConfig,
       icon: newSubject.icon,
       color: newSubject.color
     };
@@ -68,7 +96,16 @@ const EGETracker = () => {
     setSubjects([...subjects, subject]);
     setAttempts({ ...attempts, [id]: [] });
     setSelectedTasks({ ...selectedTasks, [id]: null });
-    setNewSubject({ name: '', totalTasks: 20, icon: 'BookOpen', color: 'bg-pink-500' });
+    setNewSubject({ 
+      name: '', 
+      part1From: 1,
+      part1To: 12,
+      part2From: 13,
+      part2To: 19,
+      icon: 'BookOpen', 
+      color: 'bg-pink-500' 
+    });
+    setPart2PointsConfig({});
   };
 
   const selectTask = (subjectId: string, taskNumber: number) => {
@@ -76,14 +113,16 @@ const EGETracker = () => {
       ...prev,
       [subjectId]: prev[subjectId] === taskNumber ? null : taskNumber
     }));
+    setPart2Points(0);
   };
 
-  const saveAttempt = (subjectId: string, taskNumber: number, status: 'completed' | 'failed' | 'skipped') => {
+  const saveAttempt = (subjectId: string, taskNumber: number, status: 'completed' | 'failed' | 'skipped', points?: number, maxPoints?: number) => {
     const today = new Date().toISOString().split('T')[0];
     const newAttempt: TaskAttempt = {
       taskNumber,
       status,
-      date: today
+      date: today,
+      ...(points !== undefined && { points, maxPoints })
     };
 
     setAttempts(prev => ({
@@ -95,18 +134,32 @@ const EGETracker = () => {
       ...prev,
       [subjectId]: null
     }));
+    setPart2Points(0);
   };
 
   const getTaskStats = (subjectId: string, taskNumber: number) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (!subject) return { percentage: 0, attempts: 0 };
+
+    const isPart2 = taskNumber >= subject.part2Range.from && taskNumber <= subject.part2Range.to;
     const taskAttempts = attempts[subjectId].filter(a => a.taskNumber === taskNumber && a.status !== 'skipped');
-    const completed = taskAttempts.filter(a => a.status === 'completed').length;
-    const total = taskAttempts.length;
     
-    if (total === 0) return { percentage: 0, attempts: 0 };
+    if (taskAttempts.length === 0) return { percentage: 0, attempts: 0 };
+
+    let percentage: number;
+    
+    if (isPart2) {
+      const totalPoints = taskAttempts.reduce((sum, a) => sum + (a.points || 0), 0);
+      const totalMaxPoints = taskAttempts.reduce((sum, a) => sum + (a.maxPoints || 1), 0);
+      percentage = Math.round((totalPoints / totalMaxPoints) * 100);
+    } else {
+      const completed = taskAttempts.filter(a => a.status === 'completed').length;
+      percentage = Math.round((completed / taskAttempts.length) * 100);
+    }
     
     return {
-      percentage: Math.round((completed / total) * 100),
-      attempts: total
+      percentage,
+      attempts: taskAttempts.length
     };
   };
 
@@ -114,14 +167,14 @@ const EGETracker = () => {
     const subject = subjects.find(s => s.id === subjectId);
     if (!subject) return 0;
 
-    const taskNumbers = Array.from({ length: subject.totalTasks }, (_, i) => i + 1);
+    const allTaskNumbers = [
+      ...Array.from({ length: subject.part1Range.to - subject.part1Range.from + 1 }, (_, i) => subject.part1Range.from + i),
+      ...Array.from({ length: subject.part2Range.to - subject.part2Range.from + 1 }, (_, i) => subject.part2Range.from + i)
+    ];
     
-    const allAttempts = taskNumbers.map(num => {
-      const taskAttempts = attempts[subjectId].filter(a => a.taskNumber === num && a.status !== 'skipped');
-      if (taskAttempts.length === 0) return null;
-      
-      const completed = taskAttempts.filter(a => a.status === 'completed').length;
-      return (completed / taskAttempts.length) * 100;
+    const allAttempts = allTaskNumbers.map(num => {
+      const stats = getTaskStats(subjectId, num);
+      return stats.attempts > 0 ? stats.percentage : null;
     }).filter(p => p !== null) as number[];
     
     if (allAttempts.length === 0) return 0;
@@ -137,6 +190,54 @@ const EGETracker = () => {
     const newSelected = { ...selectedTasks };
     delete newSelected[subjectId];
     setSelectedTasks(newSelected);
+  };
+
+  const isPart2Task = (subjectId: string, taskNumber: number) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (!subject) return false;
+    return taskNumber >= subject.part2Range.from && taskNumber <= subject.part2Range.to;
+  };
+
+  const renderTaskGrid = (subject: Subject, isPart2: boolean) => {
+    const range = isPart2 ? subject.part2Range : subject.part1Range;
+    const tasks = Array.from({ length: range.to - range.from + 1 }, (_, i) => range.from + i);
+
+    return (
+      <div className="space-y-3">
+        <h3 className="font-semibold text-sm">
+          {isPart2 ? 'Часть 2' : 'Часть 1'} (задания {range.from}–{range.to})
+        </h3>
+        <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-2">
+          {tasks.map(taskNum => {
+            const stats = getTaskStats(subject.id, taskNum);
+            const isSelected = selectedTasks[subject.id] === taskNum;
+            
+            return (
+              <div
+                key={taskNum}
+                className={`
+                  relative p-3 rounded-lg border-2 cursor-pointer transition-all text-center
+                  ${isSelected ? 'border-primary bg-primary/10 scale-105' : 'border-border hover:border-primary/50'}
+                `}
+                onClick={() => selectTask(subject.id, taskNum)}
+              >
+                <div className="font-semibold text-sm">{taskNum}</div>
+                {stats.attempts > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {stats.percentage}%
+                  </div>
+                )}
+                {isPart2 && (
+                  <div className="text-xs text-muted-foreground">
+                    max {subject.part2MaxPoints[taskNum] || 1}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -155,7 +256,7 @@ const EGETracker = () => {
                   Добавить предмет
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Новый предмет</DialogTitle>
                 </DialogHeader>
@@ -168,14 +269,74 @@ const EGETracker = () => {
                       onChange={(e) => setNewSubject({ ...newSubject, name: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <Label>Количество заданий в экзамене</Label>
-                    <Input
-                      type="number"
-                      value={newSubject.totalTasks}
-                      onChange={(e) => setNewSubject({ ...newSubject, totalTasks: parseInt(e.target.value) || 0 })}
-                    />
+                  
+                  <div className="border-t pt-4">
+                    <Label className="text-base font-semibold">Часть 1 (тестовая)</Label>
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div>
+                        <Label className="text-xs">С задания</Label>
+                        <Input
+                          type="number"
+                          value={newSubject.part1From}
+                          onChange={(e) => setNewSubject({ ...newSubject, part1From: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">По задание</Label>
+                        <Input
+                          type="number"
+                          value={newSubject.part1To}
+                          onChange={(e) => setNewSubject({ ...newSubject, part1To: parseInt(e.target.value) || 12 })}
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="border-t pt-4">
+                    <Label className="text-base font-semibold">Часть 2 (развернутые ответы)</Label>
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div>
+                        <Label className="text-xs">С задания</Label>
+                        <Input
+                          type="number"
+                          value={newSubject.part2From}
+                          onChange={(e) => setNewSubject({ ...newSubject, part2From: parseInt(e.target.value) || 13 })}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">По задание</Label>
+                        <Input
+                          type="number"
+                          value={newSubject.part2To}
+                          onChange={(e) => setNewSubject({ ...newSubject, part2To: parseInt(e.target.value) || 19 })}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <Label className="text-xs">Максимальные баллы за задания части 2</Label>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {Array.from({ length: newSubject.part2To - newSubject.part2From + 1 }, (_, i) => newSubject.part2From + i).map(taskNum => (
+                          <div key={taskNum} className="flex items-center gap-2">
+                            <Label className="text-xs whitespace-nowrap">№{taskNum}:</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="24"
+                              placeholder="балл"
+                              className="h-8"
+                              value={part2PointsConfig[taskNum] || ''}
+                              onChange={(e) => setPart2PointsConfig({
+                                ...part2PointsConfig,
+                                [taskNum]: parseInt(e.target.value) || 1
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <Label>Цвет</Label>
                     <select
@@ -193,6 +354,7 @@ const EGETracker = () => {
                       <option value="bg-teal-500">Бирюзовый</option>
                     </select>
                   </div>
+
                   <Button onClick={addSubject} className="w-full">
                     Добавить предмет
                   </Button>
@@ -213,7 +375,9 @@ const EGETracker = () => {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm">{subject.name}</h3>
-                        <p className="text-xs text-muted-foreground">{subject.totalTasks} заданий</p>
+                        <p className="text-xs text-muted-foreground">
+                          {subject.part1Range.to - subject.part1Range.from + 1 + subject.part2Range.to - subject.part2Range.from + 1} заданий
+                        </p>
                       </div>
                     </div>
                     <Button
@@ -238,7 +402,7 @@ const EGETracker = () => {
           </div>
 
           <Tabs defaultValue={subjects[0]?.id} className="w-full">
-            <TabsList className={`grid w-full grid-cols-${Math.min(subjects.length, 4)}`}>
+            <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(subjects.length, 4)}, 1fr)` }}>
               {subjects.map(subject => (
                 <TabsTrigger key={subject.id} value={subject.id} className="text-xs sm:text-sm">
                   {subject.name.split(' ')[0]}
@@ -252,59 +416,80 @@ const EGETracker = () => {
                   <CardHeader>
                     <CardTitle className="text-lg">Выбери задание</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-2">
-                      {Array.from({ length: subject.totalTasks }, (_, i) => i + 1).map(taskNum => {
-                        const stats = getTaskStats(subject.id, taskNum);
-                        const isSelected = selectedTasks[subject.id] === taskNum;
-                        
-                        return (
-                          <div
-                            key={taskNum}
-                            className={`
-                              relative p-3 rounded-lg border-2 cursor-pointer transition-all text-center
-                              ${isSelected ? 'border-primary bg-primary/10 scale-105' : 'border-border hover:border-primary/50'}
-                            `}
-                            onClick={() => selectTask(subject.id, taskNum)}
-                          >
-                            <div className="font-semibold text-sm">{taskNum}</div>
-                            {stats.attempts > 0 && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {stats.percentage}%
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <CardContent className="space-y-6">
+                    {renderTaskGrid(subject, false)}
+                    {renderTaskGrid(subject, true)}
 
                     {selectedTasks[subject.id] !== null && (
                       <div className="mt-6 p-4 border-2 border-primary/30 rounded-lg bg-primary/5">
                         <p className="text-sm font-medium mb-3">
                           Задание {selectedTasks[subject.id]} — как решилось?
                         </p>
+                        
+                        {isPart2Task(subject.id, selectedTasks[subject.id]!) && (
+                          <div className="mb-3">
+                            <Label className="text-xs">Баллов набрано (макс: {subject.part2MaxPoints[selectedTasks[subject.id]!] || 1})</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={subject.part2MaxPoints[selectedTasks[subject.id]!] || 1}
+                              value={part2Points}
+                              onChange={(e) => setPart2Points(parseInt(e.target.value) || 0)}
+                              className="mt-1"
+                            />
+                          </div>
+                        )}
+                        
                         <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'completed')}
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <Icon name="Check" size={16} className="mr-2" />
-                            Решил
-                          </Button>
-                          <Button
-                            onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'failed')}
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            <Icon name="X" size={16} className="mr-2" />
-                            Не решил
-                          </Button>
-                          <Button
-                            onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'skipped')}
-                            className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
-                          >
-                            <Icon name="Minus" size={16} className="mr-2" />
-                            Пропустил
-                          </Button>
+                          {isPart2Task(subject.id, selectedTasks[subject.id]!) ? (
+                            <>
+                              <Button
+                                onClick={() => saveAttempt(
+                                  subject.id, 
+                                  selectedTasks[subject.id]!, 
+                                  'completed',
+                                  part2Points,
+                                  subject.part2MaxPoints[selectedTasks[subject.id]!]
+                                )}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                disabled={part2Points === 0}
+                              >
+                                <Icon name="Check" size={16} className="mr-2" />
+                                Сохранить
+                              </Button>
+                              <Button
+                                onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'skipped')}
+                                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+                              >
+                                <Icon name="Minus" size={16} className="mr-2" />
+                                Пропустил
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'completed')}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <Icon name="Check" size={16} className="mr-2" />
+                                Решил
+                              </Button>
+                              <Button
+                                onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'failed')}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                <Icon name="X" size={16} className="mr-2" />
+                                Не решил
+                              </Button>
+                              <Button
+                                onClick={() => saveAttempt(subject.id, selectedTasks[subject.id]!, 'skipped')}
+                                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+                              >
+                                <Icon name="Minus" size={16} className="mr-2" />
+                                Пропустил
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -317,14 +502,21 @@ const EGETracker = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {Array.from({ length: subject.totalTasks }, (_, i) => i + 1)
+                      {[
+                        ...Array.from({ length: subject.part1Range.to - subject.part1Range.from + 1 }, (_, i) => subject.part1Range.from + i),
+                        ...Array.from({ length: subject.part2Range.to - subject.part2Range.from + 1 }, (_, i) => subject.part2Range.from + i)
+                      ]
                         .filter(taskNum => getTaskStats(subject.id, taskNum).attempts > 0)
                         .map(taskNum => {
                           const stats = getTaskStats(subject.id, taskNum);
+                          const isPart2 = isPart2Task(subject.id, taskNum);
                           return (
                             <Card key={taskNum} className="p-3">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold">Задание {taskNum}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">№{taskNum}</span>
+                                  {isPart2 && <Badge variant="outline" className="text-xs">Ч2</Badge>}
+                                </div>
                                 <Badge
                                   variant={stats.percentage >= 70 ? 'default' : stats.percentage >= 40 ? 'secondary' : 'destructive'}
                                 >
@@ -339,8 +531,10 @@ const EGETracker = () => {
                           );
                         })}
                       
-                      {Array.from({ length: subject.totalTasks }, (_, i) => i + 1)
-                        .filter(taskNum => getTaskStats(subject.id, taskNum).attempts > 0).length === 0 && (
+                      {[
+                        ...Array.from({ length: subject.part1Range.to - subject.part1Range.from + 1 }, (_, i) => subject.part1Range.from + i),
+                        ...Array.from({ length: subject.part2Range.to - subject.part2Range.from + 1 }, (_, i) => subject.part2Range.from + i)
+                      ].filter(taskNum => getTaskStats(subject.id, taskNum).attempts > 0).length === 0 && (
                         <p className="text-sm text-muted-foreground col-span-full text-center py-8">
                           Пока нет данных. Начни решать задания!
                         </p>

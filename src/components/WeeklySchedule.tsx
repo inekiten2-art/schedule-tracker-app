@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,12 +12,15 @@ interface Task {
   id: string;
   title: string;
   day: string;
+  time?: string;
   repeat: boolean;
   completed: boolean;
   timerMinutes: number | null;
   timeSpent: number;
   streak: number;
   missed: number;
+  notifyEnabled: boolean;
+  notifyMinutes: number;
 }
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -42,27 +45,90 @@ const WeeklySchedule = () => {
       id: '1',
       title: 'Полить цветы',
       day: 'Пн',
+      time: '10:00',
       repeat: true,
       completed: false,
       timerMinutes: 10,
       timeSpent: 0,
       streak: 3,
-      missed: 0
+      missed: 0,
+      notifyEnabled: true,
+      notifyMinutes: 15
     },
     {
       id: '2',
       title: 'Математика ЕГЭ',
       day: 'Вт',
+      time: '14:00',
       repeat: true,
       completed: false,
       timerMinutes: 60,
       timeSpent: 0,
       streak: 12,
-      missed: 1
+      missed: 1,
+      notifyEnabled: true,
+      notifyMinutes: 30
     }
   ]);
 
-  const [newTask, setNewTask] = useState({ title: '', day: 'Пн', timerMinutes: 30, repeat: false, hasTimer: true });
+  const [newTask, setNewTask] = useState({ 
+    title: '', 
+    day: 'Пн', 
+    time: '12:00',
+    timerMinutes: 30, 
+    repeat: false, 
+    hasTimer: true,
+    notifyEnabled: false,
+    notifyMinutes: 15
+  });
+
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    }
+  };
+
+  useEffect(() => {
+    const checkNotifications = () => {
+      const now = new Date();
+      const currentDay = DAYS[now.getDay() === 0 ? 6 : now.getDay() - 1];
+      
+      tasks.forEach(task => {
+        if (!task.notifyEnabled || !task.time || task.completed) return;
+        
+        if (task.day === currentDay) {
+          const [hours, minutes] = task.time.split(':').map(Number);
+          const taskTime = new Date();
+          taskTime.setHours(hours, minutes, 0, 0);
+          
+          const notifyTime = new Date(taskTime.getTime() - task.notifyMinutes * 60000);
+          
+          const diff = notifyTime.getTime() - now.getTime();
+          
+          if (diff > 0 && diff < 60000 && Notification.permission === 'granted') {
+            new Notification('ПродуктивМастер', {
+              body: `Через ${task.notifyMinutes} мин: ${task.title}`,
+              icon: '/favicon.ico'
+            });
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkNotifications, 60000);
+    checkNotifications();
+
+    return () => clearInterval(interval);
+  }, [tasks]);
 
   const addTask = () => {
     if (!newTask.title.trim()) return;
@@ -71,16 +137,28 @@ const WeeklySchedule = () => {
       id: Date.now().toString(),
       title: newTask.title,
       day: newTask.day,
+      time: newTask.time,
       repeat: newTask.repeat,
       completed: false,
       timerMinutes: newTask.hasTimer ? newTask.timerMinutes : null,
       timeSpent: 0,
       streak: 0,
-      missed: 0
+      missed: 0,
+      notifyEnabled: newTask.notifyEnabled,
+      notifyMinutes: newTask.notifyMinutes
     };
     
     setTasks([...tasks, task]);
-    setNewTask({ title: '', day: 'Пн', timerMinutes: 30, repeat: false, hasTimer: true });
+    setNewTask({ 
+      title: '', 
+      day: 'Пн', 
+      time: '12:00',
+      timerMinutes: 30, 
+      repeat: false, 
+      hasTimer: true,
+      notifyEnabled: false,
+      notifyMinutes: 15
+    });
   };
 
   const toggleComplete = (id: string) => {
@@ -103,7 +181,10 @@ const WeeklySchedule = () => {
   };
 
   const getTasksByDay = (day: string) => {
-    return tasks.filter(task => task.day === day);
+    return tasks.filter(task => task.day === day).sort((a, b) => {
+      if (!a.time || !b.time) return 0;
+      return a.time.localeCompare(b.time);
+    });
   };
 
   return (
@@ -123,7 +204,7 @@ const WeeklySchedule = () => {
                 Добавить задачу
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Новая задача</DialogTitle>
               </DialogHeader>
@@ -136,17 +217,27 @@ const WeeklySchedule = () => {
                     onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                   />
                 </div>
-                <div>
-                  <Label>День недели</Label>
-                  <select
-                    className="w-full p-2 border rounded-md"
-                    value={newTask.day}
-                    onChange={(e) => setNewTask({ ...newTask, day: e.target.value })}
-                  >
-                    {DAYS.map(day => (
-                      <option key={day} value={day}>{day}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>День недели</Label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={newTask.day}
+                      onChange={(e) => setNewTask({ ...newTask, day: e.target.value })}
+                    >
+                      {DAYS.map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Время</Label>
+                    <Input
+                      type="time"
+                      value={newTask.time}
+                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -172,6 +263,43 @@ const WeeklySchedule = () => {
                   />
                   <Label>Повторять каждую неделю</Label>
                 </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Checkbox
+                      checked={newTask.notifyEnabled}
+                      onCheckedChange={(checked) => {
+                        setNewTask({ ...newTask, notifyEnabled: checked as boolean });
+                        if (checked) requestNotificationPermission();
+                      }}
+                    />
+                    <Label>Включить уведомления</Label>
+                  </div>
+                  
+                  {newTask.notifyEnabled && (
+                    <div>
+                      <Label>Предупредить за:</Label>
+                      <select
+                        className="w-full p-2 border rounded-md mt-1"
+                        value={newTask.notifyMinutes}
+                        onChange={(e) => setNewTask({ ...newTask, notifyMinutes: parseInt(e.target.value) })}
+                      >
+                        <option value={10}>10 минут</option>
+                        <option value={15}>15 минут</option>
+                        <option value={30}>30 минут</option>
+                        <option value={45}>45 минут</option>
+                        <option value={60}>1 час</option>
+                      </select>
+                    </div>
+                  )}
+                  
+                  {notificationPermission !== 'granted' && newTask.notifyEnabled && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      Разреши уведомления в браузере для работы напоминаний
+                    </p>
+                  )}
+                </div>
+
                 <Button onClick={addTask} className="w-full">
                   Создать задачу
                 </Button>
@@ -218,12 +346,25 @@ const WeeklySchedule = () => {
                                 <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
                                   {task.title}
                                 </p>
-                                {task.repeat && (
-                                  <Badge variant="secondary" className="text-xs mt-1">
-                                    <Icon name="Repeat" size={12} className="mr-1" />
-                                    Повтор
-                                  </Badge>
+                                {task.time && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {task.time}
+                                  </p>
                                 )}
+                                <div className="flex items-center gap-1 mt-1">
+                                  {task.repeat && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Icon name="Repeat" size={10} className="mr-1" />
+                                      Повтор
+                                    </Badge>
+                                  )}
+                                  {task.notifyEnabled && (
+                                    <Badge variant="outline" className="text-xs">
+                                      <Icon name="Bell" size={10} className="mr-1" />
+                                      {task.notifyMinutes}м
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <Button

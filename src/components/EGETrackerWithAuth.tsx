@@ -149,6 +149,9 @@ const EGETrackerWithAuth = () => {
         const newSelected = { ...selectedTasks };
         delete newSelected[subjectId];
         setSelectedTasks(newSelected);
+        if (expandedSubject === subjectId) {
+          setExpandedSubject(null);
+        }
         setDeleteConfirm(null);
       }
     } catch (error) {

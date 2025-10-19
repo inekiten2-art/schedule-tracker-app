@@ -43,11 +43,12 @@ const Statistics = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setSubjects(data);
+        const activeSubjects = data.filter((s: any) => !s.archived);
+        setSubjects(activeSubjects);
         
         const progressData: Record<string, number> = {};
         
-        for (const subject of data) {
+        for (const subject of activeSubjects) {
           const attemptsResponse = await fetch(
             `https://functions.poehali.dev/75d7b054-d6b3-4c92-9209-927a85acf6eb?subjectId=${subject.id}`,
             { headers: { 'X-Auth-Token': token! } }

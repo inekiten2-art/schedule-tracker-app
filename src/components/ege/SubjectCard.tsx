@@ -53,7 +53,7 @@ const SubjectCard = ({ subject, progress, onArchive, onDelete, onClick }: Subjec
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(subject.id); }}>
                 <Icon name="Archive" size={14} className="mr-2" />
-                В корзину
+                {subject.archived ? 'Восстановить' : 'В корзину'}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 

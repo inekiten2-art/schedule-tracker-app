@@ -170,7 +170,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Subject not found'})
                 }
             
-            cursor.execute(f"DELETE FROM attempts WHERE subject_id = {subject_id}")
+            cursor.execute(f"DELETE FROM task_attempts WHERE subject_id = {subject_id}")
             cursor.execute(f"DELETE FROM subjects WHERE id = {subject_id}")
             conn.commit()
             

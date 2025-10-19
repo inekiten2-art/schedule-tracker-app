@@ -53,8 +53,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if method == 'GET':
             cursor.execute(
-                "SELECT * FROM subjects WHERE user_id = %s ORDER BY created_at ASC",
-                (user_id,)
+                f"SELECT * FROM subjects WHERE user_id = {user_id} ORDER BY created_at ASC"
             )
             subjects = cursor.fetchall()
             
@@ -80,22 +79,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif method == 'POST':
             body_data = json.loads(event.get('body', '{}'))
             
+            name = body_data['name'].replace("'", "''")
+            icon = body_data.get('icon', 'BookOpen').replace("'", "''")
+            color = body_data.get('color', 'bg-blue-500').replace("'", "''")
+            part2_max_points_json = json.dumps(body_data['part2MaxPoints']).replace("'", "''")
+            
             cursor.execute(
-                """INSERT INTO subjects 
+                f"""INSERT INTO subjects 
                 (user_id, name, part1_from, part1_to, part2_from, part2_to, part2_max_points, icon, color) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) 
-                RETURNING *""",
-                (
-                    user_id,
-                    body_data['name'],
-                    body_data['part1From'],
-                    body_data['part1To'],
-                    body_data['part2From'],
-                    body_data['part2To'],
-                    json.dumps(body_data['part2MaxPoints']),
-                    body_data.get('icon', 'BookOpen'),
-                    body_data.get('color', 'bg-blue-500')
-                )
+                VALUES ({user_id}, '{name}', {body_data['part1From']}, {body_data['part1To']}, 
+                {body_data['part2From']}, {body_data['part2To']}, '{part2_max_points_json}', '{icon}', '{color}') 
+                RETURNING *"""
             )
             subject = cursor.fetchone()
             conn.commit()
@@ -129,8 +123,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cursor.execute(
-                "SELECT id FROM subjects WHERE id = %s AND user_id = %s",
-                (subject_id, user_id)
+                f"SELECT id FROM subjects WHERE id = {subject_id} AND user_id = {user_id}"
             )
             subject = cursor.fetchone()
             
@@ -142,9 +135,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             if 'archived' in body_data:
+                archived_value = 'TRUE' if body_data['archived'] else 'FALSE'
                 cursor.execute(
-                    "UPDATE subjects SET archived = %s WHERE id = %s",
-                    (body_data['archived'], subject_id)
+                    f"UPDATE subjects SET archived = {archived_value} WHERE id = {subject_id}"
                 )
                 conn.commit()
             
@@ -166,8 +159,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cursor.execute(
-                "SELECT id FROM subjects WHERE id = %s AND user_id = %s",
-                (subject_id, user_id)
+                f"SELECT id FROM subjects WHERE id = {subject_id} AND user_id = {user_id}"
             )
             subject = cursor.fetchone()
             
@@ -178,8 +170,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Subject not found'})
                 }
             
-            cursor.execute("DELETE FROM attempts WHERE subject_id = %s", (subject_id,))
-            cursor.execute("DELETE FROM subjects WHERE id = %s", (subject_id,))
+            cursor.execute(f"DELETE FROM attempts WHERE subject_id = {subject_id}")
+            cursor.execute(f"DELETE FROM subjects WHERE id = {subject_id}")
             conn.commit()
             
             return {

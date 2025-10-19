@@ -3,11 +3,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 import WeeklySchedule from '@/components/WeeklySchedule';
-import EGETracker from '@/components/EGETracker';
+import EGETrackerWithAuth from '@/components/EGETrackerWithAuth';
 import Statistics from '@/components/Statistics';
+import AuthForm from '@/components/auth/AuthForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('schedule');
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Icon name="Loader2" className="animate-spin" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthForm />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -45,7 +60,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="ege" className="animate-fade-in">
-            <EGETracker />
+            <EGETrackerWithAuth />
           </TabsContent>
 
           <TabsContent value="stats" className="animate-fade-in">

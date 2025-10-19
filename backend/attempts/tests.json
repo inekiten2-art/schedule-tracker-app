@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Get subject attempts unauthorized",
+      "method": "GET",
+      "path": "/?subjectId=1",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create attempt unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "subjectId": 1,
+        "taskNumber": 1,
+        "status": "completed"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

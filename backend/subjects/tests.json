@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Get user subjects",
+      "method": "GET",
+      "path": "/",
+      "headers": {
+        "X-Auth-Token": "1:test@test.com:abc123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new subject",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Auth-Token": "1:test@test.com:abc123"
+      },
+      "body": {
+        "name": "Математика",
+        "part1From": 1,
+        "part1To": 12,
+        "part2From": 13,
+        "part2To": 19,
+        "part2MaxPoints": {"13": 2, "14": 2},
+        "icon": "Calculator",
+        "color": "bg-blue-500"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "id": "string",
+        "name": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

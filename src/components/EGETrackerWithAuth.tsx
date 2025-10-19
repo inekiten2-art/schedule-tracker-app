@@ -367,7 +367,8 @@ const EGETrackerWithAuth = () => {
               <CardContent className="pt-6">
                 <TaskStatistics
                   subject={subjects.find(s => s.id === expandedSubject)!}
-                  attempts={attempts[expandedSubject] || []}
+                  getTaskStats={(taskNumber) => getTaskStats(expandedSubject, taskNumber)}
+                  isPart2Task={(taskNumber) => isPart2Task(expandedSubject, taskNumber)}
                 />
               </CardContent>
             </Card>

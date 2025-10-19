@@ -17,8 +17,14 @@ const TaskAttemptPanel = ({ subject, taskNumber, isPart2, onSaveAttempt }: TaskA
   const maxPoints = isPart2 ? (subject.part2MaxPoints[taskNumber] || 1) : 1;
 
   const handleSave = (status: 'completed' | 'failed' | 'skipped') => {
-    if (isPart2 && status === 'completed') {
-      onSaveAttempt(status, points, maxPoints);
+    if (isPart2) {
+      if (status === 'completed') {
+        onSaveAttempt(status, points, maxPoints);
+      } else if (status === 'failed') {
+        onSaveAttempt(status, 0, maxPoints);
+      } else {
+        onSaveAttempt(status);
+      }
     } else {
       onSaveAttempt(status);
     }
@@ -55,6 +61,13 @@ const TaskAttemptPanel = ({ subject, taskNumber, isPart2, onSaveAttempt }: TaskA
             >
               <Icon name="Check" size={16} className="mr-2" />
               Сохранить
+            </Button>
+            <Button
+              onClick={() => handleSave('failed')}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Icon name="X" size={16} className="mr-2" />
+              Не решил
             </Button>
             <Button
               onClick={() => handleSave('skipped')}

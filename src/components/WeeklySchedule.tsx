@@ -40,36 +40,7 @@ const getDayWithDate = (dayIndex: number) => {
 };
 
 const WeeklySchedule = () => {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Полить цветы',
-      day: 'Пн',
-      time: '10:00',
-      repeat: true,
-      completed: false,
-      timerMinutes: 10,
-      timeSpent: 0,
-      streak: 3,
-      missed: 0,
-      notifyEnabled: true,
-      notifyMinutes: 15
-    },
-    {
-      id: '2',
-      title: 'Математика ЕГЭ',
-      day: 'Вт',
-      time: '14:00',
-      repeat: true,
-      completed: false,
-      timerMinutes: 60,
-      timeSpent: 0,
-      streak: 12,
-      missed: 1,
-      notifyEnabled: true,
-      notifyMinutes: 30
-    }
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const [newTask, setNewTask] = useState({ 
     title: '', 
@@ -289,6 +260,9 @@ const WeeklySchedule = () => {
                         <option value={30}>30 минут</option>
                         <option value={45}>45 минут</option>
                         <option value={60}>1 час</option>
+                        <option value={120}>2 часа</option>
+                        <option value={180}>3 часа</option>
+                        <option value={240}>4 часа</option>
                       </select>
                     </div>
                   )}

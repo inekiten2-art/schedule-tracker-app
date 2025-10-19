@@ -8,7 +8,11 @@
         "X-Auth-Token": "1:test@test.com:abc123"
       },
       "expectedStatus": 200,
-      "expectedBody": [],
+      "expectedBody": [{
+        "id": "string",
+        "name": "string",
+        "archived": "boolean"
+      }],
       "bodyMatcher": "partial"
     },
     {

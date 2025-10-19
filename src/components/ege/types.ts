@@ -6,6 +6,7 @@ export interface Subject {
   part2MaxPoints: Record<number, number>;
   icon: string;
   color: string;
+  archived?: boolean;
 }
 
 export interface TaskAttempt {

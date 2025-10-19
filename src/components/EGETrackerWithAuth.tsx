@@ -10,6 +10,14 @@ import TaskGrid from './ege/TaskGrid';
 import TaskAttemptPanel from './ege/TaskAttemptPanel';
 import TaskStatistics from './ege/TaskStatistics';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const EGETrackerWithAuth = () => {
   const { token, user, logout } = useAuth();
@@ -17,6 +25,9 @@ const EGETrackerWithAuth = () => {
   const [attempts, setAttempts] = useState<Record<string, TaskAttempt[]>>({});
   const [selectedTasks, setSelectedTasks] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -90,6 +101,58 @@ const EGETrackerWithAuth = () => {
       }
     } catch (error) {
       console.error('Failed to add subject:', error);
+    }
+  };
+
+  const archiveSubject = async (subjectId: string) => {
+    try {
+      const subject = subjects.find(s => s.id === subjectId);
+      if (!subject) return;
+
+      const response = await fetch(
+        `https://functions.poehali.dev/68cf2f96-a928-4ff2-af92-8808221d9fed?id=${subjectId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-Token': token!
+          },
+          body: JSON.stringify({ archived: !subject.archived })
+        }
+      );
+      
+      if (response.ok) {
+        setSubjects(subjects.map(s => 
+          s.id === subjectId ? { ...s, archived: !s.archived } : s
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to archive subject:', error);
+    }
+  };
+
+  const deleteSubject = async (subjectId: string) => {
+    try {
+      const response = await fetch(
+        `https://functions.poehali.dev/68cf2f96-a928-4ff2-af92-8808221d9fed?id=${subjectId}`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Auth-Token': token! }
+        }
+      );
+      
+      if (response.ok) {
+        setSubjects(subjects.filter(s => s.id !== subjectId));
+        const newAttempts = { ...attempts };
+        delete newAttempts[subjectId];
+        setAttempts(newAttempts);
+        const newSelected = { ...selectedTasks };
+        delete newSelected[subjectId];
+        setSelectedTasks(newSelected);
+        setDeleteConfirm(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete subject:', error);
     }
   };
 
@@ -184,30 +247,6 @@ const EGETrackerWithAuth = () => {
     return Math.round(allAttempts.reduce((a, b) => a + b, 0) / allAttempts.length);
   };
 
-  const deleteSubject = async (subjectId: string) => {
-    try {
-      const response = await fetch(
-        `https://functions.poehali.dev/68cf2f96-a928-4ff2-af92-8808221d9fed?id=${subjectId}`,
-        {
-          method: 'DELETE',
-          headers: { 'X-Auth-Token': token! }
-        }
-      );
-      
-      if (response.ok) {
-        setSubjects(subjects.filter(s => s.id !== subjectId));
-        const newAttempts = { ...attempts };
-        delete newAttempts[subjectId];
-        setAttempts(newAttempts);
-        const newSelected = { ...selectedTasks };
-        delete newSelected[subjectId];
-        setSelectedTasks(newSelected);
-      }
-    } catch (error) {
-      console.error('Failed to delete subject:', error);
-    }
-  };
-
   const isPart2Task = (subjectId: string, taskNumber: number) => {
     const subject = subjects.find(s => s.id === subjectId);
     if (!subject) return false;
@@ -221,6 +260,10 @@ const EGETrackerWithAuth = () => {
       </div>
     );
   }
+
+  const activeSubjects = subjects.filter(s => !s.archived);
+  const archivedSubjects = subjects.filter(s => s.archived);
+  const displaySubjects = showArchived ? archivedSubjects : activeSubjects;
 
   return (
     <div className="space-y-6">
@@ -239,13 +282,12 @@ const EGETrackerWithAuth = () => {
                   Трекер подготовки к ЕГЭ
                 </span>
               </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Привет, {user?.name}!
+              <p className="text-sm text-muted-foreground mt-1 ml-14">
+                {user?.email}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <AddSubjectDialog onAddSubject={handleAddSubject} />
-              <Button variant="outline" size="sm" onClick={logout}>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={logout} size="sm">
                 <Icon name="LogOut" size={16} className="mr-2" />
                 Выйти
               </Button>
@@ -253,81 +295,158 @@ const EGETrackerWithAuth = () => {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          {subjects.length === 0 ? (
-            <div className="text-center py-12">
-              <Icon name="BookOpen" size={48} className="mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Пока нет предметов</h3>
-              <p className="text-muted-foreground mb-4">Добавьте первый предмет для начала подготовки</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-2">
+              <Button
+                variant={!showArchived ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowArchived(false)}
+              >
+                Активные ({activeSubjects.length})
+              </Button>
+              <Button
+                variant={showArchived ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowArchived(true)}
+              >
+                <Icon name="Archive" size={14} className="mr-2" />
+                Корзина ({archivedSubjects.length})
+              </Button>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {subjects.map(subject => (
-                  <SubjectCard
-                    key={subject.id}
-                    subject={subject}
-                    progress={getSubjectProgress(subject.id)}
-                    onDelete={deleteSubject}
-                  />
+            <AddSubjectDialog onAddSubject={handleAddSubject} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+            {displaySubjects.map(subject => (
+              <SubjectCard
+                key={subject.id}
+                subject={subject}
+                progress={getSubjectProgress(subject.id)}
+                onArchive={archiveSubject}
+                onDelete={(id) => {
+                  const subj = subjects.find(s => s.id === id);
+                  if (subj) setDeleteConfirm({ id, name: subj.name });
+                }}
+                onClick={() => setExpandedSubject(expandedSubject === subject.id ? null : subject.id)}
+              />
+            ))}
+          </div>
+
+          {displaySubjects.length === 0 && (
+            <div className="text-center py-12">
+              <Icon 
+                name={showArchived ? "Archive" : "BookOpen"} 
+                size={64} 
+                className="mx-auto text-muted-foreground mb-4" 
+              />
+              <p className="text-muted-foreground text-lg">
+                {showArchived 
+                  ? 'Корзина пуста' 
+                  : 'Добавьте первый предмет для начала подготовки'}
+              </p>
+            </div>
+          )}
+
+          {expandedSubject && !showArchived && (
+            <Card className="mt-6 border-2 border-primary/30">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Icon name="BarChart3" className="text-primary" size={20} />
+                    Статистика: {subjects.find(s => s.id === expandedSubject)?.name}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedSubject(null)}
+                  >
+                    <Icon name="X" size={16} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <TaskStatistics
+                  subject={subjects.find(s => s.id === expandedSubject)!}
+                  attempts={attempts[expandedSubject] || []}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {!showArchived && activeSubjects.length > 0 && (
+            <Tabs defaultValue={activeSubjects[0]?.id} className="w-full mt-6">
+              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(activeSubjects.length, 4)}, 1fr)` }}>
+                {activeSubjects.map(subject => (
+                  <TabsTrigger key={subject.id} value={subject.id} className="text-xs sm:text-sm">
+                    {subject.name.split(' ')[0]}
+                  </TabsTrigger>
                 ))}
-              </div>
+              </TabsList>
 
-              <Tabs defaultValue={subjects[0]?.id} className="w-full">
-                <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(subjects.length, 4)}, 1fr)` }}>
-                  {subjects.map(subject => (
-                    <TabsTrigger key={subject.id} value={subject.id} className="text-xs sm:text-sm">
-                      {subject.name.split(' ')[0]}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+              {activeSubjects.map(subject => (
+                <TabsContent key={subject.id} value={subject.id} className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Выбери задание</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <TaskGrid
+                        subject={subject}
+                        isPart2={false}
+                        selectedTask={selectedTasks[subject.id]}
+                        onSelectTask={(taskNumber) => selectTask(subject.id, taskNumber)}
+                        getTaskStats={(taskNumber) => getTaskStats(subject.id, taskNumber)}
+                      />
+                      <TaskGrid
+                        subject={subject}
+                        isPart2={true}
+                        selectedTask={selectedTasks[subject.id]}
+                        onSelectTask={(taskNumber) => selectTask(subject.id, taskNumber)}
+                        getTaskStats={(taskNumber) => getTaskStats(subject.id, taskNumber)}
+                      />
 
-                {subjects.map(subject => (
-                  <TabsContent key={subject.id} value={subject.id} className="space-y-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Выбери задание</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <TaskGrid
+                      {selectedTasks[subject.id] !== null && (
+                        <TaskAttemptPanel
                           subject={subject}
-                          isPart2={false}
-                          selectedTask={selectedTasks[subject.id]}
-                          onSelectTask={(taskNumber) => selectTask(subject.id, taskNumber)}
-                          getTaskStats={(taskNumber) => getTaskStats(subject.id, taskNumber)}
+                          taskNumber={selectedTasks[subject.id]!}
+                          isPart2={isPart2Task(subject.id, selectedTasks[subject.id]!)}
+                          onSaveAttempt={(status, points, maxPoints) => 
+                            saveAttempt(subject.id, selectedTasks[subject.id]!, status, points, maxPoints)
+                          }
                         />
-                        <TaskGrid
-                          subject={subject}
-                          isPart2={true}
-                          selectedTask={selectedTasks[subject.id]}
-                          onSelectTask={(taskNumber) => selectTask(subject.id, taskNumber)}
-                          getTaskStats={(taskNumber) => getTaskStats(subject.id, taskNumber)}
-                        />
-
-                        {selectedTasks[subject.id] !== null && (
-                          <TaskAttemptPanel
-                            subject={subject}
-                            taskNumber={selectedTasks[subject.id]!}
-                            isPart2={isPart2Task(subject.id, selectedTasks[subject.id]!)}
-                            onSaveAttempt={(status, points, maxPoints) => 
-                              saveAttempt(subject.id, selectedTasks[subject.id]!, status, points, maxPoints)
-                            }
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <TaskStatistics
-                      subject={subject}
-                      getTaskStats={(taskNumber) => getTaskStats(subject.id, taskNumber)}
-                      isPart2Task={(taskNumber) => isPart2Task(subject.id, taskNumber)}
-                    />
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              ))}
+            </Tabs>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить предмет навсегда?</DialogTitle>
+            <DialogDescription>
+              Вы собираетесь удалить предмет <strong>{deleteConfirm?.name}</strong> и всю его статистику. 
+              Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Отмена
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => deleteConfirm && deleteSubject(deleteConfirm.id)}
+            >
+              <Icon name="Trash2" size={16} className="mr-2" />
+              Удалить навсегда
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

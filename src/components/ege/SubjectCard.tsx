@@ -3,18 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import Icon from '@/components/ui/icon';
 import { Subject } from './types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
 
 interface SubjectCardProps {
   subject: Subject;
   progress: number;
+  onArchive: (id: string) => void;
   onDelete: (id: string) => void;
+  onClick?: () => void;
 }
 
-const SubjectCard = ({ subject, progress, onDelete }: SubjectCardProps) => {
+const SubjectCard = ({ subject, progress, onArchive, onDelete, onClick }: SubjectCardProps) => {
   const totalTasks = subject.part1Range.to - subject.part1Range.from + 1 + subject.part2Range.to - subject.part2Range.from + 1;
 
   return (
-    <Card className="border-2 hover:border-primary/30 transition-all">
+    <Card 
+      className="border-2 hover:border-primary/30 transition-all cursor-pointer" 
+      onClick={onClick}
+    >
       <CardContent className="pt-6">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -28,14 +40,31 @@ const SubjectCard = ({ subject, progress, onDelete }: SubjectCardProps) => {
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDelete(subject.id)}
-          >
-            <Icon name="Trash2" size={14} />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+              >
+                <Icon name="MoreVertical" size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(subject.id); }}>
+                <Icon name="Archive" size={14} className="mr-2" />
+                В корзину
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={(e) => { e.stopPropagation(); onDelete(subject.id); }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Icon name="Trash2" size={14} className="mr-2" />
+                Удалить навсегда
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">

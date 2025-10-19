@@ -67,7 +67,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'part2Range': {'from': subject['part2_from'], 'to': subject['part2_to']},
                     'part2MaxPoints': subject['part2_max_points'],
                     'icon': subject['icon'],
-                    'color': subject['color']
+                    'color': subject['color'],
+                    'archived': subject.get('archived', False)
                 })
             
             return {
@@ -115,6 +116,44 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'body': json.dumps(result)
             }
         
+        elif method == 'PUT':
+            params = event.get('queryStringParameters', {}) or {}
+            subject_id = params.get('id')
+            body_data = json.loads(event.get('body', '{}'))
+            
+            if not subject_id:
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Subject ID required'})
+                }
+            
+            cursor.execute(
+                "SELECT id FROM subjects WHERE id = %s AND user_id = %s",
+                (subject_id, user_id)
+            )
+            subject = cursor.fetchone()
+            
+            if not subject:
+                return {
+                    'statusCode': 404,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Subject not found'})
+                }
+            
+            if 'archived' in body_data:
+                cursor.execute(
+                    "UPDATE subjects SET archived = %s WHERE id = %s",
+                    (body_data['archived'], subject_id)
+                )
+                conn.commit()
+            
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': True})
+            }
+        
         elif method == 'DELETE':
             params = event.get('queryStringParameters', {}) or {}
             subject_id = params.get('id')
@@ -139,7 +178,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Subject not found'})
                 }
             
-            cursor.execute("UPDATE subjects SET name = name WHERE id = %s", (subject_id,))
+            cursor.execute("DELETE FROM attempts WHERE subject_id = %s", (subject_id,))
+            cursor.execute("DELETE FROM subjects WHERE id = %s", (subject_id,))
             conn.commit()
             
             return {

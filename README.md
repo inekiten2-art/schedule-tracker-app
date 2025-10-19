@@ -1,3 +1,3 @@
-# schedule-tracker-app
+# calendar-knowledge
 
-Initial repository setup for pr-poehali-dev/schedule-tracker-app
+https://calendar-knowledge

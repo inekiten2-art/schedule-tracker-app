@@ -28,10 +28,17 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       <div className="container max-w-7xl mx-auto px-4 py-8">
         <header className="mb-8 text-center animate-fade-in">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2 flex items-center justify-center gap-3">
-            <Icon name="Target" className="text-primary" size={42} />
-            ПродуктивМастер
-          </h1>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-md opacity-50 animate-pulse"></div>
+              <div className="relative p-3 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full">
+                <Icon name="Sparkles" size={36} className="text-white" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Успешный Успех
+            </h1>
+          </div>
           <p className="text-muted-foreground text-lg">
             Твой путь к успеху на ЕГЭ и продуктивной жизни
           </p>

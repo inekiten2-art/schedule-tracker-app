@@ -225,12 +225,19 @@ const EGETrackerWithAuth = () => {
   return (
     <div className="space-y-6">
       <Card className="border-primary/20 shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+        <CardHeader className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Icon name="GraduationCap" className="text-primary" size={28} />
-                Трекер подготовки к ЕГЭ
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-sm opacity-40"></div>
+                  <div className="relative p-2 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full">
+                    <Icon name="GraduationCap" className="text-white" size={24} />
+                  </div>
+                </div>
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Трекер подготовки к ЕГЭ
+                </span>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 Привет, {user?.name}!

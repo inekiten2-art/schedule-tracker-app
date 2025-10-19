@@ -10,14 +10,7 @@ import TaskGrid from './ege/TaskGrid';
 import TaskAttemptPanel from './ege/TaskAttemptPanel';
 import TaskStatistics from './ege/TaskStatistics';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+
 
 const EGETrackerWithAuth = () => {
   const { token, user, logout } = useAuth();
@@ -26,7 +19,7 @@ const EGETrackerWithAuth = () => {
   const [selectedTasks, setSelectedTasks] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
 
   useEffect(() => {
@@ -152,7 +145,6 @@ const EGETrackerWithAuth = () => {
         if (expandedSubject === subjectId) {
           setExpandedSubject(null);
         }
-        setDeleteConfirm(null);
       }
     } catch (error) {
       console.error('Failed to delete subject:', error);
@@ -326,10 +318,7 @@ const EGETrackerWithAuth = () => {
                 subject={subject}
                 progress={getSubjectProgress(subject.id)}
                 onArchive={archiveSubject}
-                onDelete={(id) => {
-                  const subj = subjects.find(s => s.id === id);
-                  if (subj) setDeleteConfirm({ id, name: subj.name });
-                }}
+                onDelete={deleteSubject}
                 onClick={() => setExpandedSubject(expandedSubject === subject.id ? null : subject.id)}
               />
             ))}
@@ -428,29 +417,7 @@ const EGETrackerWithAuth = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Удалить предмет навсегда?</DialogTitle>
-            <DialogDescription>
-              Вы собираетесь удалить предмет <strong>{deleteConfirm?.name}</strong> и всю его статистику. 
-              Это действие нельзя отменить.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-              Отмена
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => deleteConfirm && deleteSubject(deleteConfirm.id)}
-            >
-              <Icon name="Trash2" size={16} className="mr-2" />
-              Удалить навсегда
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 };

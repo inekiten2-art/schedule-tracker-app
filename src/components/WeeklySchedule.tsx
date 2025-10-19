@@ -14,13 +14,27 @@ interface Task {
   day: string;
   repeat: boolean;
   completed: boolean;
-  timerMinutes: number;
+  timerMinutes: number | null;
   timeSpent: number;
   streak: number;
   missed: number;
 }
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+const getDayWithDate = (dayIndex: number) => {
+  const today = new Date();
+  const currentDay = today.getDay();
+  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+  
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + mondayOffset + dayIndex);
+  
+  const day = targetDate.getDate();
+  const month = targetDate.getMonth() + 1;
+  
+  return `${day}.${month.toString().padStart(2, '0')}`;
+};
 
 const WeeklySchedule = () => {
   const [tasks, setTasks] = useState<Task[]>([
@@ -48,8 +62,7 @@ const WeeklySchedule = () => {
     }
   ]);
 
-  const [newTask, setNewTask] = useState({ title: '', day: 'Пн', timerMinutes: 30, repeat: false });
-  const [activeTimer, setActiveTimer] = useState<string | null>(null);
+  const [newTask, setNewTask] = useState({ title: '', day: 'Пн', timerMinutes: 30, repeat: false, hasTimer: true });
 
   const addTask = () => {
     if (!newTask.title.trim()) return;
@@ -60,14 +73,14 @@ const WeeklySchedule = () => {
       day: newTask.day,
       repeat: newTask.repeat,
       completed: false,
-      timerMinutes: newTask.timerMinutes,
+      timerMinutes: newTask.hasTimer ? newTask.timerMinutes : null,
       timeSpent: 0,
       streak: 0,
       missed: 0
     };
     
     setTasks([...tasks, task]);
-    setNewTask({ title: '', day: 'Пн', timerMinutes: 30, repeat: false });
+    setNewTask({ title: '', day: 'Пн', timerMinutes: 30, repeat: false, hasTimer: true });
   };
 
   const toggleComplete = (id: string) => {
@@ -78,7 +91,7 @@ const WeeklySchedule = () => {
           ...task,
           completed: isCompleting,
           streak: isCompleting ? task.streak + 1 : task.streak,
-          timeSpent: isCompleting ? task.timerMinutes : task.timeSpent
+          timeSpent: isCompleting && task.timerMinutes !== null ? task.timerMinutes : task.timeSpent
         };
       }
       return task;
@@ -135,14 +148,23 @@ const WeeklySchedule = () => {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <Label>Время выполнения (мин)</Label>
-                  <Input
-                    type="number"
-                    value={newTask.timerMinutes}
-                    onChange={(e) => setNewTask({ ...newTask, timerMinutes: parseInt(e.target.value) || 0 })}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={newTask.hasTimer}
+                    onCheckedChange={(checked) => setNewTask({ ...newTask, hasTimer: checked as boolean })}
                   />
+                  <Label>Задача с таймером</Label>
                 </div>
+                {newTask.hasTimer && (
+                  <div>
+                    <Label>Время выполнения (мин)</Label>
+                    <Input
+                      type="number"
+                      value={newTask.timerMinutes}
+                      onChange={(e) => setNewTask({ ...newTask, timerMinutes: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Checkbox
                     checked={newTask.repeat}
@@ -158,14 +180,17 @@ const WeeklySchedule = () => {
           </Dialog>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {DAYS.map(day => (
+            {DAYS.map((day, index) => (
               <Card key={day} className="border-2 hover:border-primary/30 transition-colors">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                    <span>{day}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {getTasksByDay(day).length}
-                    </Badge>
+                  <CardTitle className="text-lg font-semibold flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span>{day}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {getTasksByDay(day).length}
+                      </Badge>
+                    </div>
+                    <span className="text-sm font-normal text-muted-foreground">{getDayWithDate(index)}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -212,10 +237,12 @@ const WeeklySchedule = () => {
                           </div>
 
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Icon name="Timer" size={14} className="text-accent" />
-                              <span>{task.timerMinutes}м</span>
-                            </div>
+                            {task.timerMinutes !== null && (
+                              <div className="flex items-center gap-1">
+                                <Icon name="Timer" size={14} className="text-accent" />
+                                <span>{task.timerMinutes}м</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-1">
                               <Icon name="Flame" size={14} className="text-secondary" />
                               <span>{task.streak}</span>
